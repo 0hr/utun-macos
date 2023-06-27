@@ -21,11 +21,11 @@ import (
 import "C"
 
 const (
-	IfacePrefix     = "utun"
-	UTunControlName = C.UTUN_CONTROL_NAME
+	ifacePrefix     = "utun"
+	uTunControlName = C.UTUN_CONTROL_NAME // net/if_utun.h -> "com.apple.net.utun_control"
 )
 
-// CtlInfo
+// ctlInfo
 // kern_control.h
 /*
 #define MAX_KCTL_NAME   96
@@ -35,12 +35,12 @@ struct ctl_info {
 };
 */
 
-type CtlInfo struct {
+type ctlInfo struct {
 	CtlId   uint32
 	CtlName [C.MAX_KCTL_NAME]byte
 }
 
-// SockAddrCtl
+// sockAddrCtl
 // kern_control.h
 /*
 	struct sockaddr_ctl {
@@ -52,7 +52,7 @@ type CtlInfo struct {
 		u_int32_t   sc_reserved[5];
 	};
 */
-type SockAddrCtl struct {
+type sockAddrCtl struct {
 	ScLen      uint8
 	ScFamily   uint8
 	ScSysAddr  uint16
@@ -62,8 +62,7 @@ type SockAddrCtl struct {
 }
 
 func Open(name string) (*os.File, error) {
-
-	after, found := strings.CutPrefix(name, IfacePrefix)
+	after, found := strings.CutPrefix(name, ifacePrefix)
 
 	if !found {
 		return nil, fmt.Errorf("interface name must be utun[0-9]")
@@ -82,8 +81,8 @@ func Open(name string) (*os.File, error) {
 	}
 	var errNo syscall.Errno
 
-	var ctlInfo = &CtlInfo{}
-	copy(ctlInfo.CtlName[:], []byte(UTunControlName))
+	var ctlInfo = &ctlInfo{}
+	copy(ctlInfo.CtlName[:], []byte(uTunControlName))
 
 	/**
 	  if (ioctl(fd(), CTLIOCGINFO, &ctlInfo) == -1)
@@ -96,10 +95,10 @@ func Open(name string) (*os.File, error) {
 	// #define _IOWR(g, n, t)    _IOC(IOC_INOUT,	(g), (n), sizeof(t))
 	_, _, errNo = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), C.CTLIOCGINFO, uintptr(unsafe.Pointer(ctlInfo)))
 	if errNo != 0 {
-		return nil, fmt.Errorf("error while calling SYS_IOCTL ErrNo: %s", errNo)
+		return nil, fmt.Errorf("error while calling SYS_IOCTL ErrNo: %v", errNo)
 	}
 
-	sockAddrCtl := &SockAddrCtl{
+	sockAddrCtl := &sockAddrCtl{
 		ScLen:    uint8(ctlInfo.CtlId),
 		ScFamily: syscall.AF_SYSTEM,
 		// sys_domain.h
@@ -122,7 +121,7 @@ func Open(name string) (*os.File, error) {
 	*/
 	_, _, errNo = syscall.RawSyscall(syscall.SYS_CONNECT, uintptr(fd), uintptr(unsafe.Pointer(sockAddrCtl)), unsafe.Sizeof(sockAddrCtl))
 	if errNo != 0 {
-		return nil, fmt.Errorf("error while calling SYS_CONNECT ErrNo: %s", errNo)
+		return nil, fmt.Errorf("error while calling SYS_CONNECT ErrNo: %v", errNo)
 	}
 
 	/**
@@ -145,7 +144,7 @@ func Open(name string) (*os.File, error) {
 	)
 
 	if errNo != 0 {
-		return nil, fmt.Errorf("error while calling SYS_GETSOCKOPT ErrNo: %s", errNo)
+		return nil, fmt.Errorf("error while calling SYS_GETSOCKOPT ErrNo: %v", errNo)
 	}
 
 	// read and write operations on the file will not block the program's execution

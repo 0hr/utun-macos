@@ -1,3 +1,3 @@
-module github.com/0hr/tun-macos
+module github.com/0hr/utun-macos
 
 go 1.20
